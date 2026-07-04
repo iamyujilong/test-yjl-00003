@@ -79,9 +79,9 @@ router.get('/settlement/service', (req, res) => {
 })
 
 router.post('/settlement/commission', (req, res) => {
-  const { order_id, amount, user_id } = req.body
-  db.run('INSERT INTO settlements (type, order_id, user_id, amount) VALUES (?, ?, ?, ?)',
-    ['commission', order_id, user_id || 1, amount],
+  const { order_id, amount, user_id, rate, sales_amount } = req.body
+  db.run('INSERT INTO commissions (order_id, user_id, sales_amount, rate, amount) VALUES (?, ?, ?, ?, ?)',
+    [order_id, user_id || 1, sales_amount || 0, rate || 3.00, amount],
     function (err) {
       if (err) {
         return res.status(500).json({ error: err.message })
@@ -91,12 +91,11 @@ router.post('/settlement/commission', (req, res) => {
 })
 
 router.get('/settlement/commission', (req, res) => {
-  db.all(`SELECT s.*, o.order_no, u.username 
-          FROM settlements s 
-          LEFT JOIN orders o ON s.order_id = o.id
-          LEFT JOIN users u ON s.user_id = u.id
-          WHERE s.type = ?
-          ORDER BY s.created_at DESC`, ['commission'], (err, records) => {
+  db.all(`SELECT c.*, o.order_no, u.username as salesperson_name
+          FROM commissions c 
+          LEFT JOIN orders o ON c.order_id = o.id
+          LEFT JOIN users u ON c.user_id = u.id
+          ORDER BY c.created_at DESC`, (err, records) => {
     if (err) {
       return res.status(500).json({ error: err.message })
     }
@@ -118,9 +117,10 @@ router.post('/settlement/invoice', (req, res) => {
 })
 
 router.get('/settlement/invoice', (req, res) => {
-  db.all(`SELECT i.*, s.type as settlement_type, s.amount as settlement_amount
+  db.all(`SELECT i.*, s.type as settlement_type, s.amount as settlement_amount, o.order_no
           FROM invoices i 
           LEFT JOIN settlements s ON i.settlement_id = s.id
+          LEFT JOIN orders o ON s.order_id = o.id
           ORDER BY i.created_at DESC`, (err, records) => {
     if (err) {
       return res.status(500).json({ error: err.message })
@@ -130,62 +130,55 @@ router.get('/settlement/invoice', (req, res) => {
 })
 
 router.get('/settlement/statement', (req, res) => {
-  const { type, target_id } = req.query as { type?: string; target_id?: string }
+  const { type } = req.query as { type?: string }
   if (type === 'supplier') {
-    db.get('SELECT * FROM suppliers WHERE id = ?', [target_id], (err, supplier: any) => {
+    db.all(`SELECT s.id, s.name, s.contact, s.phone, 
+                   SUM(o.total_amount) as total_amount,
+                   SUM(CASE WHEN st.status = 'paid' THEN st.amount ELSE 0 END) as settled_amount
+            FROM suppliers s
+            LEFT JOIN orders o ON s.id = o.supplier_id AND o.type = 'purchase'
+            LEFT JOIN settlements st ON o.id = st.order_id AND st.type = 'purchase'
+            GROUP BY s.id
+            ORDER BY s.name`, (err, suppliers) => {
       if (err) {
         return res.status(500).json({ error: err.message })
       }
-      db.all(`SELECT o.*, s.amount as settled_amount
-              FROM orders o
-              LEFT JOIN settlements s ON o.id = s.order_id
-              WHERE o.supplier_id = ? AND o.type = 'purchase'`, [target_id], (err, orders) => {
-        if (err) {
-          return res.status(500).json({ error: err.message })
-        }
-        const totalAmount = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount), 0)
-        const settledAmount = orders.reduce((sum: number, o: any) => sum + Number(o.settled_amount || 0), 0)
-        res.json({
-          status: 'ok',
-          data: {
-            type: 'supplier',
-            target: supplier,
-            period: '2026-07',
-            total_amount: totalAmount,
-            settled_amount: settledAmount,
-            unpaid_amount: totalAmount - settledAmount,
-            orders
-          }
-        })
-      })
+      const statements = suppliers.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        contact: s.contact,
+        phone: s.phone,
+        type: 'supplier',
+        period: '2026-07',
+        total_amount: Number(s.total_amount) || 0,
+        settled_amount: Number(s.settled_amount) || 0,
+        items: []
+      }))
+      res.json({ status: 'ok', data: statements })
     })
   } else if (type === 'customer') {
-    db.get('SELECT * FROM customers WHERE id = ?', [target_id], (err, customer: any) => {
+    db.all(`SELECT c.id, c.name, c.phone, c.type as customer_type,
+                   SUM(o.total_amount) as total_amount,
+                   SUM(CASE WHEN st.status = 'paid' THEN st.amount ELSE 0 END) as settled_amount
+            FROM customers c
+            LEFT JOIN orders o ON c.id = o.customer_id AND o.type = 'sales'
+            LEFT JOIN settlements st ON o.id = st.order_id AND st.type = 'sales'
+            GROUP BY c.id
+            ORDER BY c.name`, (err, customers) => {
       if (err) {
         return res.status(500).json({ error: err.message })
       }
-      db.all(`SELECT o.*, s.amount as settled_amount
-              FROM orders o
-              LEFT JOIN settlements s ON o.id = s.order_id
-              WHERE o.customer_id = ? AND o.type = 'sales'`, [target_id], (err, orders) => {
-        if (err) {
-          return res.status(500).json({ error: err.message })
-        }
-        const totalAmount = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount), 0)
-        const settledAmount = orders.reduce((sum: number, o: any) => sum + Number(o.settled_amount || 0), 0)
-        res.json({
-          status: 'ok',
-          data: {
-            type: 'customer',
-            target: customer,
-            period: '2026-07',
-            total_amount: totalAmount,
-            settled_amount: settledAmount,
-            unpaid_amount: totalAmount - settledAmount,
-            orders
-          }
-        })
-      })
+      const statements = customers.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        contact: c.phone,
+        type: 'customer',
+        period: '2026-07',
+        total_amount: Number(c.total_amount) || 0,
+        settled_amount: Number(c.settled_amount) || 0,
+        items: []
+      }))
+      res.json({ status: 'ok', data: statements })
     })
   } else {
     res.status(400).json({ error: '缺少参数' })

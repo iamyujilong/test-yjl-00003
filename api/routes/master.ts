@@ -1,4 +1,5 @@
 import express from 'express'
+import bcrypt from 'bcryptjs'
 import { db } from '../database'
 
 const router = express.Router()
@@ -144,9 +145,9 @@ router.get('/master/suppliers', (req, res) => {
 })
 
 router.post('/master/suppliers', (req, res) => {
-  const { name, contact, phone, address, tax_id } = req.body
-  db.run('INSERT INTO suppliers (name, contact, phone, address, tax_id) VALUES (?, ?, ?, ?, ?)',
-    [name, contact, phone, address, tax_id],
+  const { name, contact, phone, address, tax_id, cooperation_brands } = req.body
+  db.run('INSERT INTO suppliers (name, contact, phone, address, tax_id, cooperation_brands) VALUES (?, ?, ?, ?, ?, ?)',
+    [name, contact, phone, address, tax_id, cooperation_brands],
     function (err) {
       if (err) {
         return res.status(500).json({ error: err.message })
@@ -156,7 +157,13 @@ router.post('/master/suppliers', (req, res) => {
 })
 
 router.get('/master/warehouses', (req, res) => {
-  db.all('SELECT * FROM warehouses ORDER BY name', (err, warehouses) => {
+  db.all(`SELECT w.*, 
+                 COUNT(l.id) as total_locations,
+                 SUM(CASE WHEN l.status = 'occupied' THEN 1 ELSE 0 END) as used_locations
+          FROM warehouses w
+          LEFT JOIN locations l ON w.id = l.warehouse_id
+          GROUP BY w.id
+          ORDER BY w.name`, (err, warehouses) => {
     if (err) {
       return res.status(500).json({ error: err.message })
     }
@@ -177,7 +184,7 @@ router.post('/master/warehouses', (req, res) => {
 })
 
 router.get('/master/users', (req, res) => {
-  db.all('SELECT id, username, role, email, created_at FROM users ORDER BY created_at DESC', (err, users) => {
+  db.all('SELECT id, username, name, role, email, created_at, status FROM users ORDER BY created_at DESC', (err, users) => {
     if (err) {
       return res.status(500).json({ error: err.message })
     }
@@ -186,14 +193,13 @@ router.get('/master/users', (req, res) => {
 })
 
 router.post('/master/users', (req, res) => {
-  const { username, password, role, email } = req.body
-  const bcrypt = require('bcrypt')
+  const { username, password, role, email, name = username, status = 'active' } = req.body
   bcrypt.hash(password, 10, (err: any, hash: string) => {
     if (err) {
       return res.status(500).json({ error: err.message })
     }
-    db.run('INSERT INTO users (username, password, role, email) VALUES (?, ?, ?, ?)',
-      [username, hash, role, email],
+    db.run('INSERT INTO users (username, password, role, email, name, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [username, hash, role, email, name, status],
       function (err) {
         if (err) {
           return res.status(500).json({ error: err.message })

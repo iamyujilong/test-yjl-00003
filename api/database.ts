@@ -1,11 +1,13 @@
 import sqlite3 from 'sqlite3'
 import path from 'path'
+import bcrypt from 'bcryptjs'
 
-const dbPath = path.join(__dirname, '../data/database.db')
+const dataDir = path.join(__dirname, '../data')
 
-export const db = new sqlite3.Database(dbPath, (err) => {
+export const db = new sqlite3.Database(path.join(dataDir, 'database.db'), sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
   if (err) {
     console.error('Database connection error:', err.message)
+    process.exit(1)
   } else {
     console.log('Connected to SQLite database')
   }
@@ -13,6 +15,8 @@ export const db = new sqlite3.Database(dbPath, (err) => {
 
 export const initDatabase = (): Promise<void> => {
   return new Promise((resolve, reject) => {
+    const adminPasswordHash = bcrypt.hashSync('admin123', 10)
+
     db.serialize(() => {
       db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,6 +24,8 @@ export const initDatabase = (): Promise<void> => {
         password VARCHAR(255) NOT NULL,
         role VARCHAR(20) NOT NULL,
         email VARCHAR(100),
+        name VARCHAR(50),
+        status VARCHAR(20) DEFAULT 'active',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`)
@@ -88,6 +94,7 @@ export const initDatabase = (): Promise<void> => {
         phone VARCHAR(20),
         address TEXT,
         tax_id VARCHAR(50),
+        cooperation_brands TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`)
 
@@ -181,6 +188,19 @@ export const initDatabase = (): Promise<void> => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`)
 
+      db.run(`CREATE TABLE IF NOT EXISTS commissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        sales_amount DECIMAL(12,2) NOT NULL,
+        rate DECIMAL(5,2) NOT NULL,
+        amount DECIMAL(12,2) NOT NULL,
+        status VARCHAR(20) DEFAULT 'calculated',
+        FOREIGN KEY (order_id) REFERENCES orders(id),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`)
+
       db.run(`CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source VARCHAR(50) NOT NULL,
@@ -192,8 +212,8 @@ export const initDatabase = (): Promise<void> => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`)
 
-      db.run(`INSERT OR IGNORE INTO users (username, password, role, email) 
-        VALUES ('admin', '$2b$10$N9qo8uLOickgx2ZMRZoMye.IjzqAKL9xL5jvMFVdNJHvGCgTq/VEq', 'admin', 'admin@example.com')`)
+      db.run(`INSERT OR REPLACE INTO users (id, username, password, role, email, name, status) 
+        VALUES (1, 'admin', ?, 'admin', 'admin@example.com', '管理员', 'active')`, [adminPasswordHash])
 
       db.run(`INSERT OR IGNORE INTO car_brands (name) VALUES ('宝马'), ('奔驰'), ('奥迪'), ('大众'), ('丰田'), ('本田')`)
 
@@ -214,14 +234,14 @@ export const initDatabase = (): Promise<void> => {
         (6, 'GLC260L'), (6, 'GLC300L')`)
 
       db.run(`INSERT OR IGNORE INTO customers (type, name, phone, email) VALUES 
-        ('个人', '张三', '13800138001', 'zhangsan@example.com'),
-        ('企业', '北京汽车销售有限公司', '010-12345678', 'sales@bjcar.com'),
-        ('个人', '李四', '13900139002', 'lisi@example.com')`)
+        ('personal', '张三', '13800138001', 'zhangsan@example.com'),
+        ('enterprise', '北京汽车销售有限公司', '010-12345678', 'sales@bjcar.com'),
+        ('personal', '李四', '13900139002', 'lisi@example.com')`)
 
-      db.run(`INSERT OR IGNORE INTO suppliers (name, contact, phone, address) VALUES 
-        ('上海车源供应商', '王经理', '021-87654321', '上海市浦东新区张江高科技园区'),
-        ('广州二手车批发', '李总监', '020-11223344', '广州市天河区珠江新城'),
-        ('成都汽车贸易', '张总', '028-55667788', '成都市高新区天府大道')`)
+      db.run(`INSERT OR IGNORE INTO suppliers (name, contact, phone, address, cooperation_brands) VALUES 
+        ('上海车源供应商', '王经理', '021-87654321', '上海市浦东新区张江高科技园区', '宝马,奔驰'),
+        ('广州二手车批发', '李总监', '020-11223344', '广州市天河区珠江新城', '奥迪,大众'),
+        ('成都汽车贸易', '张总', '028-55667788', '成都市高新区天府大道', '丰田,本田')`)
 
       db.run(`INSERT OR IGNORE INTO warehouses (name, address, manager) VALUES 
         ('北京仓库', '北京市朝阳区物流园A区', '赵经理'),
@@ -260,11 +280,18 @@ export const initDatabase = (): Promise<void> => {
 
       db.run(`INSERT OR IGNORE INTO settlements (type, order_id, user_id, amount, status) VALUES 
         ('purchase', 2, 1, 298000, 'paid'),
-        ('sales', 4, 1, 388000, 'paid')`)
+        ('sales', 4, 1, 388000, 'paid'),
+        ('purchase', 1, 1, 258000, 'pending'),
+        ('sales', 3, 1, 328000, 'pending')`)
 
       db.run(`INSERT OR IGNORE INTO invoices (invoice_no, settlement_id, amount, type, status, issued_at) VALUES 
-        ('FP20260704001', 1, 298000, 'vat', 'issued', '2026-07-04 10:00:00'),
-        ('FP20260704002', 2, 388000, 'vat', 'issued', '2026-07-04 11:00:00')`)
+        ('FP20260704001', 1, 298000, 'purchase', 'verified', '2026-07-04 10:00:00'),
+        ('FP20260704002', 2, 388000, 'sales', 'verified', '2026-07-04 11:00:00'),
+        ('FP20260704003', 3, 258000, 'purchase', 'pending', NULL)`)
+
+      db.run(`INSERT OR IGNORE INTO commissions (order_id, user_id, sales_amount, rate, amount, status) VALUES 
+        (3, 1, 328000, 3.00, 9840, 'calculated'),
+        (4, 1, 388000, 3.00, 11640, 'paid')`)
 
       db.run(`INSERT OR IGNORE INTO leads (source, phone, name, car_info, status) VALUES 
         ('抖音', '13700137001', '王五', '宝马3系 2020款', 'new'),
@@ -272,10 +299,11 @@ export const initDatabase = (): Promise<void> => {
         ('小红书', '13500135003', '孙七', '奥迪A4 2022款', 'qualified')`)
     })
 
-    db.close((err) => {
+    db.run('SELECT 1', [], (err) => {
       if (err) {
         reject(err)
       } else {
+        console.log('Database initialization completed')
         resolve()
       }
     })

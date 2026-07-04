@@ -3,6 +3,11 @@ import cors from 'cors'
 import path from 'path'
 import fs from 'fs'
 import { initDatabase } from './database'
+import authRoutes from './routes/auth'
+import ordersRoutes from './routes/orders'
+import warehouseRoutes from './routes/warehouse'
+import settlementRoutes from './routes/settlement'
+import masterRoutes from './routes/master'
 
 const app = express()
 const port = 3000
@@ -17,15 +22,11 @@ initDatabase().then(() => {
   app.use(express.json())
   app.use(express.urlencoded({ extended: true }))
 
-  const routesDir = path.join(__dirname, 'routes')
-  fs.readdirSync(routesDir).forEach((file) => {
-    if (file.endsWith('.ts')) {
-      const route = require(`./routes/${file}`)
-      if (route.default) {
-        app.use('/api', route.default)
-      }
-    }
-  })
+  app.use('/api', authRoutes)
+  app.use('/api', ordersRoutes)
+  app.use('/api', warehouseRoutes)
+  app.use('/api', settlementRoutes)
+  app.use('/api', masterRoutes)
 
   app.get('/api/open/test', (req, res) => {
     res.json({ status: 'ok', message: '广告平台对接 API 测试成功' })

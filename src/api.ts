@@ -133,8 +133,10 @@ export const api = {
           body: JSON.stringify(data),
         }).then(res => res.json()),
     },
-    statement: (type: string, target_id: number) =>
-      fetch(`${BASE_URL}/settlement/statement?type=${type}&target_id=${target_id}`).then(res => res.json()),
+    statement: {
+      list: (params: { type: string }) =>
+        fetch(`${BASE_URL}/settlement/statement?type=${params.type}`).then(res => res.json()),
+    },
   },
   master: {
     carBrands: {
@@ -166,7 +168,7 @@ export const api = {
           body: JSON.stringify(data),
         }).then(res => res.json()),
     },
-    cars: {
+    car: {
       list: () => fetch(`${BASE_URL}/master/cars`).then(res => res.json()),
       create: (data: any) =>
         fetch(`${BASE_URL}/master/cars`, {
@@ -175,7 +177,7 @@ export const api = {
           body: JSON.stringify(data),
         }).then(res => res.json()),
     },
-    customers: {
+    customer: {
       list: () => fetch(`${BASE_URL}/master/customers`).then(res => res.json()),
       create: (data: any) =>
         fetch(`${BASE_URL}/master/customers`, {
@@ -184,7 +186,7 @@ export const api = {
           body: JSON.stringify(data),
         }).then(res => res.json()),
     },
-    suppliers: {
+    supplier: {
       list: () => fetch(`${BASE_URL}/master/suppliers`).then(res => res.json()),
       create: (data: any) =>
         fetch(`${BASE_URL}/master/suppliers`, {
@@ -193,7 +195,7 @@ export const api = {
           body: JSON.stringify(data),
         }).then(res => res.json()),
     },
-    warehouses: {
+    warehouse: {
       list: () => fetch(`${BASE_URL}/master/warehouses`).then(res => res.json()),
       create: (data: any) =>
         fetch(`${BASE_URL}/master/warehouses`, {
@@ -202,7 +204,7 @@ export const api = {
           body: JSON.stringify(data),
         }).then(res => res.json()),
     },
-    users: {
+    user: {
       list: () => fetch(`${BASE_URL}/master/users`).then(res => res.json()),
       create: (data: any) =>
         fetch(`${BASE_URL}/master/users`, {
