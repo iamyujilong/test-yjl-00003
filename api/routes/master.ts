@@ -20,7 +20,6 @@ router.post('/master/car-brands', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     res.json({ status: 'ok', data: { id: this.lastID, name } })
-  })
 })
 
 router.get('/master/car-models', (req, res) => {
@@ -52,7 +51,6 @@ router.post('/master/car-models', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     res.json({ status: 'ok', data: { id: this.lastID, brand_id, name } })
-  })
 })
 
 router.get('/master/car-series', (req, res) => {
@@ -85,7 +83,6 @@ router.post('/master/car-series', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     res.json({ status: 'ok', data: { id: this.lastID, model_id, name } })
-  })
 })
 
 router.get('/master/cars', (req, res) => {
@@ -111,7 +108,6 @@ router.post('/master/cars', (req, res) => {
         return res.status(500).json({ error: err.message })
       }
       res.json({ status: 'ok', data: { id: this.lastID, vin } })
-    })
 })
 
 router.get('/master/customers', (req, res) => {
@@ -132,7 +128,6 @@ router.post('/master/customers', (req, res) => {
         return res.status(500).json({ error: err.message })
       }
       res.json({ status: 'ok', data: { id: this.lastID, name } })
-    })
 })
 
 router.get('/master/suppliers', (req, res) => {
@@ -153,7 +148,6 @@ router.post('/master/suppliers', (req, res) => {
         return res.status(500).json({ error: err.message })
       }
       res.json({ status: 'ok', data: { id: this.lastID, name } })
-    })
 })
 
 router.get('/master/warehouses', (req, res) => {
@@ -180,7 +174,6 @@ router.post('/master/warehouses', (req, res) => {
         return res.status(500).json({ error: err.message })
       }
       res.json({ status: 'ok', data: { id: this.lastID, name } })
-    })
 })
 
 router.get('/master/users', (req, res) => {
@@ -192,23 +185,11 @@ router.get('/master/users', (req, res) => {
   })
 })
 
-router.post('/master/users', (req, res) => {
-  const { username, password, role, email, name = username, status = 'active' } = req.body
-  bcrypt.hash(password, 10, (err: any, hash: string) => {
-    if (err) {
-      return res.status(500).json({ error: err.message })
-    }
-    db.run('INSERT INTO users (username, password, role, email, name, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [username, hash, role, email, name, status],
-      function (err) {
-        if (err) {
-          return res.status(500).json({ error: err.message })
-        }
-        res.json({ status: 'ok', data: { id: this.lastID, username } })
-      })
-  })
+  const hash = bcrypt.hashSync(password, 10);
+  db.run('INSERT INTO users (username, password, role, email, name, status) VALUES (?, ?, ?, ?, ?, ?)',
+    [username, hash, role, email, name, status],
+    function (err) {
 })
-
 router.get('/master/roles', (req, res) => {
   db.all('SELECT * FROM roles ORDER BY name', (err, roles) => {
     if (err) {
@@ -225,7 +206,6 @@ router.post('/master/roles', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     res.json({ status: 'ok', data: { id: this.lastID, name } })
-  })
 })
 
 export default router

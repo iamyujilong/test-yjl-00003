@@ -1,4 +1,4 @@
-import express from 'express'
+﻿import express from 'express'
 import { db } from '../database'
 
 const router = express.Router()
@@ -31,7 +31,7 @@ router.get('/warehouse/inbound', (req, res) => {
 
 router.post('/warehouse/alloc', (req, res) => {
   const { car_id, warehouse_id } = req.body
-  db.get('SELECT id FROM locations WHERE warehouse_id = ? AND status = ? LIMIT 1', [warehouse_id, 'empty'], (err, location) => {
+  db.get<any>('SELECT id FROM locations WHERE warehouse_id = ? AND status = ? LIMIT 1', [warehouse_id, 'empty'], (err, location) => {
     if (err) {
       return res.status(500).json({ error: err.message })
     }
@@ -77,7 +77,7 @@ router.get('/warehouse/inventory', (req, res) => {
 
 router.post('/warehouse/outbound', (req, res) => {
   const { car_id } = req.body
-  db.get('SELECT location_id FROM inventory WHERE car_id = ?', [car_id], (err, record) => {
+  db.get<any>('SELECT location_id FROM inventory WHERE car_id = ?', [car_id], (err, record) => {
     if (err) {
       return res.status(500).json({ error: err.message })
     }
@@ -85,7 +85,7 @@ router.post('/warehouse/outbound', (req, res) => {
       if (err) {
         return res.status(500).json({ error: err.message })
       }
-      if (record?.location_id) {
+      if (record && record.location_id) {
         db.run('UPDATE locations SET status = ? WHERE id = ?', ['empty', record.location_id])
       }
       res.json({ status: 'ok', data: { car_id, changes: this.changes } })

@@ -1,10 +1,15 @@
 import sqlite3 from 'sqlite3'
 import path from 'path'
+import fs from 'fs'
 import bcrypt from 'bcryptjs'
 
 const dataDir = path.join(__dirname, '../data')
 
-export const db = new sqlite3.Database(path.join(dataDir, 'database.db'), sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true })
+}
+
+export const db = new sqlite3.Database(path.join(dataDir, 'database.db'), (err) => {
   if (err) {
     console.error('Database connection error:', err.message)
     process.exit(1)
@@ -28,20 +33,26 @@ export const initDatabase = (): Promise<void> => {
         status VARCHAR(20) DEFAULT 'active',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating users table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS roles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(50) NOT NULL UNIQUE,
         permissions TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating roles table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS car_brands (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(50) NOT NULL UNIQUE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating car_brands table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS car_models (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +60,9 @@ export const initDatabase = (): Promise<void> => {
         name VARCHAR(50) NOT NULL,
         FOREIGN KEY (brand_id) REFERENCES car_brands(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating car_models table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS car_series (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +70,9 @@ export const initDatabase = (): Promise<void> => {
         name VARCHAR(50) NOT NULL,
         FOREIGN KEY (model_id) REFERENCES car_models(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating car_series table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS cars (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +89,9 @@ export const initDatabase = (): Promise<void> => {
         FOREIGN KEY (model_id) REFERENCES car_models(id),
         FOREIGN KEY (series_id) REFERENCES car_series(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating cars table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS customers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,7 +102,9 @@ export const initDatabase = (): Promise<void> => {
         address TEXT,
         tax_id VARCHAR(50),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating customers table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS suppliers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -96,7 +115,9 @@ export const initDatabase = (): Promise<void> => {
         tax_id VARCHAR(50),
         cooperation_brands TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating suppliers table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS warehouses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +125,9 @@ export const initDatabase = (): Promise<void> => {
         address TEXT,
         manager VARCHAR(50),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating warehouses table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS locations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,7 +136,9 @@ export const initDatabase = (): Promise<void> => {
         status VARCHAR(20) DEFAULT 'empty',
         FOREIGN KEY (warehouse_id) REFERENCES warehouses(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating locations table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,7 +154,9 @@ export const initDatabase = (): Promise<void> => {
         FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating orders table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS order_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,7 +167,9 @@ export const initDatabase = (): Promise<void> => {
         FOREIGN KEY (order_id) REFERENCES orders(id),
         FOREIGN KEY (car_id) REFERENCES cars(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating order_items table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS order_attachments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,7 +178,9 @@ export const initDatabase = (): Promise<void> => {
         file_path VARCHAR(500) NOT NULL,
         FOREIGN KEY (order_id) REFERENCES orders(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating order_attachments table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS inventory (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -161,7 +192,9 @@ export const initDatabase = (): Promise<void> => {
         FOREIGN KEY (car_id) REFERENCES cars(id),
         FOREIGN KEY (location_id) REFERENCES locations(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating inventory table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS settlements (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -174,7 +207,9 @@ export const initDatabase = (): Promise<void> => {
         FOREIGN KEY (user_id) REFERENCES users(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating settlements table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS invoices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,7 +221,9 @@ export const initDatabase = (): Promise<void> => {
         issued_at DATETIME,
         FOREIGN KEY (settlement_id) REFERENCES settlements(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating invoices table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS commissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -199,7 +236,9 @@ export const initDatabase = (): Promise<void> => {
         FOREIGN KEY (order_id) REFERENCES orders(id),
         FOREIGN KEY (user_id) REFERENCES users(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating commissions table:', err.message)
+      })
 
       db.run(`CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,12 +249,18 @@ export const initDatabase = (): Promise<void> => {
         status VARCHAR(20) DEFAULT 'new',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`)
+      )`, (err) => {
+        if (err) console.error('Error creating leads table:', err.message)
+      })
 
       db.run(`INSERT OR REPLACE INTO users (id, username, password, role, email, name, status) 
-        VALUES (1, 'admin', ?, 'admin', 'admin@example.com', '管理员', 'active')`, [adminPasswordHash])
+        VALUES (1, 'admin', ?, 'admin', 'admin@example.com', '管理员', 'active')`, [adminPasswordHash], (err) => {
+        if (err) console.error('Error inserting admin user:', err.message)
+      })
 
-      db.run(`INSERT OR IGNORE INTO car_brands (name) VALUES ('宝马'), ('奔驰'), ('奥迪'), ('大众'), ('丰田'), ('本田')`)
+      db.run(`INSERT OR IGNORE INTO car_brands (name) VALUES ('宝马'), ('奔驰'), ('奥迪'), ('大众'), ('丰田'), ('本田')`, (err) => {
+        if (err) console.error('Error inserting car_brands:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO car_models (brand_id, name) VALUES 
         (1, '3系'), (1, '5系'), (1, 'X3'), 
@@ -223,7 +268,9 @@ export const initDatabase = (): Promise<void> => {
         (3, 'A4'), (3, 'A6'), (3, 'Q5'),
         (4, '朗逸'), (4, '帕萨特'), (4, '途观'),
         (5, '凯美瑞'), (5, '卡罗拉'), (5, 'RAV4'),
-        (6, '雅阁'), (6, '思域'), (6, 'CR-V')`)
+        (6, '雅阁'), (6, '思域'), (6, 'CR-V')`, (err) => {
+        if (err) console.error('Error inserting car_models:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO car_series (model_id, name) VALUES 
         (1, '320Li'), (1, '325Li'), (1, '330Li'),
@@ -231,81 +278,120 @@ export const initDatabase = (): Promise<void> => {
         (3, 'xDrive25i'), (3, 'xDrive30i'),
         (4, 'C200L'), (4, 'C260L'),
         (5, 'E260L'), (5, 'E300L'),
-        (6, 'GLC260L'), (6, 'GLC300L')`)
+        (6, 'GLC260L'), (6, 'GLC300L')`, (err) => {
+        if (err) console.error('Error inserting car_series:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO customers (type, name, phone, email) VALUES 
         ('personal', '张三', '13800138001', 'zhangsan@example.com'),
         ('enterprise', '北京汽车销售有限公司', '010-12345678', 'sales@bjcar.com'),
-        ('personal', '李四', '13900139002', 'lisi@example.com')`)
+        ('personal', '李四', '13900139002', 'lisi@example.com')`, (err) => {
+        if (err) console.error('Error inserting customers:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO suppliers (name, contact, phone, address, cooperation_brands) VALUES 
         ('上海车源供应商', '王经理', '021-87654321', '上海市浦东新区张江高科技园区', '宝马,奔驰'),
         ('广州二手车批发', '李总监', '020-11223344', '广州市天河区珠江新城', '奥迪,大众'),
-        ('成都汽车贸易', '张总', '028-55667788', '成都市高新区天府大道', '丰田,本田')`)
+        ('成都汽车贸易', '张总', '028-55667788', '成都市高新区天府大道', '丰田,本田')`, (err) => {
+        if (err) console.error('Error inserting suppliers:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO warehouses (name, address, manager) VALUES 
         ('北京仓库', '北京市朝阳区物流园A区', '赵经理'),
         ('上海仓库', '上海市闵行区物流中心', '钱经理'),
-        ('广州仓库', '广州市白云区仓储基地', '孙经理')`)
+        ('广州仓库', '广州市白云区仓储基地', '孙经理')`, (err) => {
+        if (err) console.error('Error inserting warehouses:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO locations (warehouse_id, code, status) VALUES 
         (1, 'A-001', 'empty'), (1, 'A-002', 'empty'), (1, 'A-003', 'empty'),
         (1, 'B-001', 'empty'), (1, 'B-002', 'empty'), (1, 'B-003', 'empty'),
         (2, 'A-001', 'empty'), (2, 'A-002', 'empty'), (2, 'A-003', 'empty'),
-        (3, 'A-001', 'empty'), (3, 'A-002', 'empty'), (3, 'A-003', 'empty')`)
+        (3, 'A-001', 'empty'), (3, 'A-002', 'empty'), (3, 'A-003', 'empty')`, (err) => {
+        if (err) console.error('Error inserting locations:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO cars (vin, license_plate, brand_id, model_id, series_id, year, color, mileage, price) VALUES 
         ('LBV2B210XKM123456', '京A12345', 1, 1, 1, 2020, '白色', 35000, 258000),
         ('LBV3B210XLM234567', '京B23456', 1, 2, 4, 2021, '黑色', 28000, 388000),
         ('WDDWF4EB0LR345678', '沪C34567', 2, 4, 10, 2019, '银色', 42000, 298000),
         ('LFV3A23C0M4567890', '粤D45678', 3, 7, 13, 2022, '蓝色', 15000, 328000),
-        ('LSGBL5331KF567890', '川E56789', 4, 10, 16, 2020, '红色', 48000, 128000)`)
+        ('LSGBL5331KF567890', '川E56789', 4, 10, 16, 2020, '红色', 48000, 128000)`, (err) => {
+        if (err) console.error('Error inserting cars:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO orders (order_no, type, user_id, customer_id, supplier_id, status, total_amount) VALUES 
         ('PO20260704001', 'purchase', 1, NULL, 1, 'pending', 258000),
         ('PO20260704002', 'purchase', 1, NULL, 2, 'paid', 298000),
         ('SO20260704001', 'sales', 1, 1, NULL, 'transporting', 328000),
-        ('SO20260704002', 'sales', 1, 2, NULL, 'delivered', 388000)`)
+        ('SO20260704002', 'sales', 1, 2, NULL, 'delivered', 388000)`, (err) => {
+        if (err) console.error('Error inserting orders:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO order_items (order_id, car_id, price, quantity) VALUES 
         (1, 1, 258000, 1),
         (2, 3, 298000, 1),
         (3, 4, 328000, 1),
-        (4, 2, 388000, 1)`)
+        (4, 2, 388000, 1)`, (err) => {
+        if (err) console.error('Error inserting order_items:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO inventory (car_id, location_id, status, inbound_at) VALUES 
         (1, 1, 'in_stock', '2026-07-01 10:00:00'),
         (2, 2, 'in_stock', '2026-07-02 14:00:00'),
-        (5, 3, 'in_stock', '2026-07-03 09:00:00')`)
+        (5, 3, 'in_stock', '2026-07-03 09:00:00')`, (err) => {
+        if (err) console.error('Error inserting inventory:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO settlements (type, order_id, user_id, amount, status) VALUES 
         ('purchase', 2, 1, 298000, 'paid'),
         ('sales', 4, 1, 388000, 'paid'),
         ('purchase', 1, 1, 258000, 'pending'),
-        ('sales', 3, 1, 328000, 'pending')`)
+        ('sales', 3, 1, 328000, 'pending')`, (err) => {
+        if (err) console.error('Error inserting settlements:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO invoices (invoice_no, settlement_id, amount, type, status, issued_at) VALUES 
         ('FP20260704001', 1, 298000, 'purchase', 'verified', '2026-07-04 10:00:00'),
         ('FP20260704002', 2, 388000, 'sales', 'verified', '2026-07-04 11:00:00'),
-        ('FP20260704003', 3, 258000, 'purchase', 'pending', NULL)`)
+        ('FP20260704003', 3, 258000, 'purchase', 'pending', NULL)`, (err) => {
+        if (err) console.error('Error inserting invoices:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO commissions (order_id, user_id, sales_amount, rate, amount, status) VALUES 
         (3, 1, 328000, 3.00, 9840, 'calculated'),
-        (4, 1, 388000, 3.00, 11640, 'paid')`)
+        (4, 1, 388000, 3.00, 11640, 'paid')`, (err) => {
+        if (err) console.error('Error inserting commissions:', err.message)
+      })
 
       db.run(`INSERT OR IGNORE INTO leads (source, phone, name, car_info, status) VALUES 
         ('抖音', '13700137001', '王五', '宝马3系 2020款', 'new'),
         ('快手', '13600136002', '赵六', '奔驰C级 2019款', 'contacted'),
-        ('小红书', '13500135003', '孙七', '奥迪A4 2022款', 'qualified')`)
-    })
+        ('小红书', '13500135003', '孙七', '奥迪A4 2022款', 'qualified')`, (err) => {
+        if (err) console.error('Error inserting leads:', err.message)
+      })
 
-    db.run('SELECT 1', [], (err) => {
-      if (err) {
-        reject(err)
-      } else {
+      db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", [], (err, tables) => {
+        if (err) {
+          console.error('Error verifying tables:', err.message)
+          reject(err)
+          return
+        }
+        const tableNames = tables.map((t: any) => t.name)
+        console.log('Created tables:', tableNames.join(', '))
+
+        const requiredTables = ['users', 'orders', 'cars', 'customers', 'suppliers', 'warehouses', 'locations', 'inventory', 'settlements', 'invoices', 'commissions', 'leads']
+        const missingTables = requiredTables.filter(t => !tableNames.includes(t))
+        
+        if (missingTables.length > 0) {
+          console.error('Missing required tables:', missingTables.join(', '))
+          reject(new Error(`Missing required tables: ${missingTables.join(', ')}`))
+          return
+        }
+
         console.log('Database initialization completed')
         resolve()
-      }
+      })
     })
   })
 }

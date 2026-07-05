@@ -1,4 +1,6 @@
-import express from 'express'
+﻿const fs = require("fs");
+const p = "E:\\AI Coding\\test-yjl-00003\\api\\routes\\orders.ts";
+const content = `import express from 'express'
 import { db } from '../database'
 
 const router = express.Router()
@@ -14,7 +16,7 @@ router.get('/orders/purchase', (req, res) => {
 
 router.post('/orders/purchase', (req, res) => {
   const { supplier_id, items, total_amount } = req.body
-  const order_no = `PO${Date.now()}`
+  const order_no = \`PO\${Date.now()}\`
   db.run('INSERT INTO orders (order_no, type, user_id, supplier_id, total_amount) VALUES (?, ?, ?, ?, ?)',
     [order_no, 'purchase', 1, supplier_id, total_amount],
     function (err) {
@@ -71,7 +73,7 @@ router.get('/orders/sales', (req, res) => {
 
 router.post('/orders/sales', (req, res) => {
   const { customer_id, items, total_amount } = req.body
-  const order_no = `SO${Date.now()}`
+  const order_no = \`SO\${Date.now()}\`
   db.run('INSERT INTO orders (order_no, type, user_id, customer_id, total_amount) VALUES (?, ?, ?, ?, ?)',
     [order_no, 'sales', 1, customer_id, total_amount],
     function (err) {
@@ -139,3 +141,6 @@ router.put('/orders/abnormal/:id/handle', (req, res) => {
 })
 
 export default router
+`;
+fs.writeFileSync(p, content, "utf8");
+console.log("Rewrote orders.ts");

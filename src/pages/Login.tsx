@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Car, Lock, Mail } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -71,7 +71,7 @@ export function Login() {
           </button>
         </form>
         <p className="text-center text-gray-400 text-sm mt-6">
-          测试账号: admin / password
+          测试账号: admin / admin123
         </p>
       </div>
     </div>

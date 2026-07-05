@@ -322,25 +322,30 @@ curl -X POST http://localhost:3000/api/open/lead \
 
 ### 问题 1: npm 找不到文件路径
 
+**现象**: 执行 `npm run dev:server` 时报错 "Cannot find module" 或 "ENOENT: no such file or directory"
+
 **原因**: npm 脚本执行时工作目录不正确
 
 **解决方案**:
 ```bash
 # 确保在项目根目录下执行
-cd /path/to/used-car-saas
+cd "e:\AI Coding\test-yjl-00003"
 npm run dev:server
 ```
 
 ### 问题 2: 端口没有监听
 
+**现象**: 启动后看不到 "Server running on http://localhost:3000" 日志，端口 3000 没有被监听
+
 **可能原因**:
 1. 数据库初始化失败
 2. 依赖安装不完整
 3. Node.js 版本不兼容
+4. ts-node 编译失败
 
 **排查步骤**:
 ```bash
-# 查看启动日志
+# 查看启动日志（重点关注 Error 信息）
 npm run dev:server
 
 # 检查数据库文件是否创建
@@ -348,31 +353,171 @@ ls data/database.db
 
 # 检查端口占用
 netstat -ano | findstr :3000
+
+# 检查 Node.js 版本
+node -v
+
+# 检查 npm 版本
+npm -v
+
+# 重新安装依赖
+rm -rf node_modules package-lock.json
+npm install
 ```
 
-### 问题 3: 登录失败（用户名或密码错误）
+### 问题 3: db.get() 或 db.all() 调用失败
+
+**现象**: 日志中出现大量 "SQLITE_ERROR: no such table" 或 "database is locked" 错误
+
+**可能原因**:
+1. 数据库目录不存在
+2. 数据库文件权限问题
+3. 数据库连接在初始化完成前被使用
+
+**解决方案**:
+- 确保 `data/` 目录存在且有读写权限
+- 检查 `api/database.ts` 中是否在 `db.serialize()` 完成前调用了 `resolve()`
+- 删除旧的数据库文件重新初始化：
+```bash
+rm data/database.db
+npm run dev:server
+```
+
+### 问题 4: 登录失败（用户名或密码错误）
+
+**现象**: 使用 admin/admin123 登录时提示"用户名或密码错误"
 
 **原因**: 数据库中存储的密码哈希与 bcryptjs 不兼容
 
 **解决方案**:
-- 确保使用 `bcryptjs` 而不是原生 `bcrypt`
-- 本项目已使用 `bcryptjs`，首次启动会自动创建正确的密码哈希
+1. 删除旧的数据库文件重新初始化：
+```bash
+rm data/database.db
+npm run dev:server
+```
+2. 首次启动时系统会使用 bcryptjs 重新生成密码哈希
 
-### 问题 4: bcrypt 编译失败（Node.js v26）
+### 问题 5: bcrypt 编译失败（Node.js v26）
+
+**现象**: `npm install` 时出现 bcrypt 相关的编译错误
 
 **原因**: 原生 `bcrypt` 需要编译，在某些 Node.js 版本下可能失败
 
 **解决方案**:
 - 本项目已使用 `bcryptjs` 替代原生 `bcrypt`
 - `bcryptjs` 是纯 JavaScript 实现，无需编译
+- 如果仍有问题，删除 node_modules 重新安装：
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
 
-### 问题 5: 数据库操作失败
+### 问题 6: 数据库操作失败（database is locked）
 
-**原因**: 数据库连接被提前关闭
+**现象**: 数据库操作返回 "SQLITE_BUSY: database is locked"
+
+**原因**: SQLite 是文件级锁，多个进程或连接同时访问会导致锁冲突
 
 **解决方案**:
-- 确保 `database.ts` 中没有调用 `db.close()`
-- 数据库连接应在服务运行期间保持打开状态
+1. 确保只有一个后端进程在运行
+2. 检查是否有其他程序打开了数据库文件
+3. 重启服务：
+```bash
+# Windows
+taskkill /F /IM node.exe
+npm run dev:server
+
+# Linux/macOS
+killall node
+npm run dev:server
+```
+
+### 问题 7: ts-node 编译错误
+
+**现象**: 启动时报 TypeScript 编译错误
+
+**原因**: TypeScript 配置问题或代码语法错误
+
+**解决方案**:
+```bash
+# 检查 TypeScript 配置
+cat api/tsconfig.json
+
+# 运行类型检查
+npm run check
+
+# 如果是模块导入问题，确保 esModuleInterop 已启用
+```
+
+### 问题 8: 前端页面无法访问
+
+**现象**: 前端页面白屏或显示连接错误
+
+**可能原因**:
+1. 后端服务未启动
+2. 端口配置不一致
+3. CORS 配置问题
+
+**排查步骤**:
+```bash
+# 检查后端是否启动
+curl http://localhost:3000/health
+
+# 检查前端代理配置
+cat vite.config.ts
+
+# 确保后端在前端启动前启动
+```
+
+## 启动流程说明
+
+后端启动流程如下：
+1. 创建 Express 应用实例
+2. 创建 `data/` 目录（如果不存在）
+3. 创建 SQLite 数据库连接
+4. 调用 `initDatabase()` 执行建表和初始数据插入
+5. 注册所有路由
+6. 启动 HTTP 服务
+
+**关键日志**:
+```
+Connected to SQLite database    # 数据库连接成功
+Database initialization completed  # 数据库初始化完成
+Registering routes...           # 路由注册开始
+Server running on http://localhost:3000  # 服务启动成功
+```
+
+如果在 "Connected to SQLite database" 之后没有看到 "Database initialization completed"，说明数据库初始化失败，请检查日志中的错误信息。
+
+## 快速验证清单
+
+启动后执行以下命令验证服务是否正常：
+
+```bash
+# 1. 健康检查
+curl http://localhost:3000/health
+# 预期输出: {"status":"ok","timestamp":"..."}
+
+# 2. 开放 API 测试
+curl http://localhost:3000/api/open/test
+# 预期输出: {"status":"ok","message":"广告平台对接 API 测试成功",...}
+
+# 3. 用户登录
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+# 预期输出: {"status":"ok","data":{"id":1,"username":"admin",...,"token":"..."}}
+
+# 4. 获取采购订单列表
+curl http://localhost:3000/api/orders/purchase
+# 预期输出: {"status":"ok","data":[...]}
+
+# 5. 获取车源品牌列表
+curl http://localhost:3000/api/master/car-brands
+# 预期输出: {"status":"ok","data":[...]}
+```
+
+如果以上所有命令都返回 `status: "ok"`，说明服务正常运行。
 
 ## 项目维护
 

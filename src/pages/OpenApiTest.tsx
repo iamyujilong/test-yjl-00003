@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Send, CheckCircle, XCircle, Copy, FileCode } from 'lucide-react'
 
 export function OpenApiTest() {
@@ -20,7 +20,7 @@ export function OpenApiTest() {
     setLoading(true)
     setSuccess(null)
     try {
-      const res = await fetch(`http://localhost:3001${endpoint}`, {
+      const res = await fetch(`${endpoint}`, {
         method,
         headers: {
           'Content-Type': 'application/json',
