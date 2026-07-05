@@ -17,7 +17,20 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true })
 }
 
+app.use(cors())
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true }))
+
+let isDatabaseReady = false
+
 app.get('/health', (_req, res) => {
+  if (!isDatabaseReady) {
+    return res.status(503).json({ 
+      status: 'unhealthy', 
+      message: 'Database initialization in progress',
+      timestamp: new Date().toISOString() 
+    })
+  }
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
@@ -31,11 +44,8 @@ app.get('/api/open/test', (req, res) => {
 })
 
 initDatabase().then(() => {
+  isDatabaseReady = true
   console.log('Registering routes...')
-
-  app.use(cors())
-  app.use(express.json({ limit: '10mb' }))
-  app.use(express.urlencoded({ extended: true }))
 
   app.use('/api', authRoutes)
   app.use('/api', ordersRoutes)

@@ -13,23 +13,77 @@ router.get('/orders/purchase', (req, res) => {
 })
 
 router.post('/orders/purchase', (req, res) => {
-  const { supplier_id, items, total_amount } = req.body
+  const supplier_id = req.body.supplier_id
+  const items = req.body.items
+  const total_amount = req.body.total_amount
   const order_no = `PO${Date.now()}`
-  db.run('INSERT INTO orders (order_no, type, user_id, supplier_id, total_amount) VALUES (?, ?, ?, ?, ?)',
-    [order_no, 'purchase', 1, supplier_id, total_amount],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message })
-      }
-      if (items && items.length > 0) {
-        items.forEach((item) => {
-          db.run('INSERT INTO order_items (order_id, car_id, price, quantity) VALUES (?, ?, ?, ?)',
-            [this.lastID, item.car_id, item.price, item.quantity])
+  let orderId: number
+
+  db.run('BEGIN TRANSACTION', (err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Transaction start failed: ' + err.message })
+    }
+
+    db.run('INSERT INTO orders (order_no, type, user_id, supplier_id, total_amount) VALUES (?, ?, ?, ?, ?)',
+      [order_no, 'purchase', 1, supplier_id, total_amount],
+      function (err) {
+        if (err) {
+          db.run('ROLLBACK', () => {
+            res.status(500).json({ error: 'Order insert failed: ' + err.message })
+          })
+          return
+        }
+
+        orderId = this.lastID
+
+        if (!items || items.length === 0) {
+          db.run('COMMIT', (err) => {
+            if (err) {
+              return res.status(500).json({ error: 'Transaction commit failed: ' + err.message })
+            }
+            res.json({ status: 'ok', data: { id: orderId, order_no } })
+          })
+          return
+        }
+
+        insertOrderItems(items, orderId, (err) => {
+          if (err) {
+            db.run('ROLLBACK', () => {
+              res.status(500).json({ error: err.message })
+            })
+            return
+          }
+
+          db.run('COMMIT', (err) => {
+            if (err) {
+              return res.status(500).json({ error: 'Transaction commit failed: ' + err.message })
+            }
+            res.json({ status: 'ok', data: { id: orderId, order_no } })
+          })
         })
-      }
-      res.json({ status: 'ok', data: { id: this.lastID, order_no } })
-    })
+      })
+  })
 })
+
+function insertOrderItems(items: any[], orderId: number, callback: (err: Error | null) => void) {
+  let index = 0
+  const insertNext = () => {
+    if (index >= items.length) {
+      return callback(null)
+    }
+
+    const item = items[index++]
+    db.run('INSERT INTO order_items (order_id, car_id, price, quantity) VALUES (?, ?, ?, ?)',
+      [orderId, item.car_id, item.price, item.quantity],
+      function (err) {
+        if (err) {
+          return callback(new Error('Order item insert failed: ' + err.message))
+        }
+        insertNext()
+      })
+  }
+  insertNext()
+}
 
 router.get('/orders/purchase/:id', (req, res) => {
   db.get('SELECT * FROM orders WHERE id = ?', [req.params.id], (err, order) => {
@@ -37,7 +91,7 @@ router.get('/orders/purchase/:id', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     if (!order) {
-      return res.status(404).json({ error: '订单不存在' })
+      return res.status(404).json({ error: 'Order not found' })
     }
     db.all('SELECT * FROM order_items WHERE order_id = ?', [req.params.id], (err, items) => {
       if (err) {
@@ -70,22 +124,56 @@ router.get('/orders/sales', (req, res) => {
 })
 
 router.post('/orders/sales', (req, res) => {
-  const { customer_id, items, total_amount } = req.body
+  const customer_id = req.body.customer_id
+  const items = req.body.items
+  const total_amount = req.body.total_amount
   const order_no = `SO${Date.now()}`
-  db.run('INSERT INTO orders (order_no, type, user_id, customer_id, total_amount) VALUES (?, ?, ?, ?, ?)',
-    [order_no, 'sales', 1, customer_id, total_amount],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message })
-      }
-      if (items && items.length > 0) {
-        items.forEach((item) => {
-          db.run('INSERT INTO order_items (order_id, car_id, price, quantity) VALUES (?, ?, ?, ?)',
-            [this.lastID, item.car_id, item.price, item.quantity])
+  let orderId: number
+
+  db.run('BEGIN TRANSACTION', (err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Transaction start failed: ' + err.message })
+    }
+
+    db.run('INSERT INTO orders (order_no, type, user_id, customer_id, total_amount) VALUES (?, ?, ?, ?, ?)',
+      [order_no, 'sales', 1, customer_id, total_amount],
+      function (err) {
+        if (err) {
+          db.run('ROLLBACK', () => {
+            res.status(500).json({ error: 'Order insert failed: ' + err.message })
+          })
+          return
+        }
+
+        orderId = this.lastID
+
+        if (!items || items.length === 0) {
+          db.run('COMMIT', (err) => {
+            if (err) {
+              return res.status(500).json({ error: 'Transaction commit failed: ' + err.message })
+            }
+            res.json({ status: 'ok', data: { id: orderId, order_no } })
+          })
+          return
+        }
+
+        insertOrderItems(items, orderId, (err) => {
+          if (err) {
+            db.run('ROLLBACK', () => {
+              res.status(500).json({ error: err.message })
+            })
+            return
+          }
+
+          db.run('COMMIT', (err) => {
+            if (err) {
+              return res.status(500).json({ error: 'Transaction commit failed: ' + err.message })
+            }
+            res.json({ status: 'ok', data: { id: orderId, order_no } })
+          })
         })
-      }
-      res.json({ status: 'ok', data: { id: this.lastID, order_no } })
-    })
+      })
+  })
 })
 
 router.get('/orders/sales/:id', (req, res) => {
@@ -94,7 +182,7 @@ router.get('/orders/sales/:id', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     if (!order) {
-      return res.status(404).json({ error: '订单不存在' })
+      return res.status(404).json({ error: 'Order not found' })
     }
     db.all('SELECT * FROM order_items WHERE order_id = ?', [req.params.id], (err, items) => {
       if (err) {

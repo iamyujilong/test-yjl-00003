@@ -519,6 +519,27 @@ curl http://localhost:3000/api/master/car-brands
 
 如果以上所有命令都返回 `status: "ok"`，说明服务正常运行。
 
+### 健康检查接口说明
+
+健康检查接口 `/health` 会检查数据库初始化状态：
+
+- **数据库未就绪**：返回 HTTP 503，`{"status":"unhealthy","message":"Database initialization in progress"}`
+- **数据库已就绪**：返回 HTTP 200，`{"status":"ok"}`
+
+此接口可用于容器编排（如 Docker、Kubernetes）的健康探测，确保服务在数据库初始化完成后才对外提供服务。
+
+### 事务保护
+
+订单创建操作（采购订单和销售订单）采用 SQLite 事务机制：
+
+1. **BEGIN TRANSACTION**：开始事务
+2. **INSERT INTO orders**：插入订单主表
+3. **INSERT INTO order_items**：插入订单明细（支持多条）
+4. **COMMIT**：提交事务
+5. **ROLLBACK**：任一步骤失败时回滚所有操作
+
+事务保护确保订单数据的一致性，避免出现"只有订单主表记录但没有明细"的情况。
+
 ## 项目维护
 
 ### 添加新功能模块

@@ -31,12 +31,12 @@ router.get('/warehouse/inbound', (req, res) => {
 
 router.post('/warehouse/alloc', (req, res) => {
   const { car_id, warehouse_id } = req.body
-  db.get<any>('SELECT id FROM locations WHERE warehouse_id = ? AND status = ? LIMIT 1', [warehouse_id, 'empty'], (err, location) => {
+  db.get('SELECT id FROM locations WHERE warehouse_id = ? AND status = ? LIMIT 1', [warehouse_id, 'empty'], (err, location: any) => {
     if (err) {
       return res.status(500).json({ error: err.message })
     }
     if (!location) {
-      return res.status(400).json({ error: '该仓库没有空库位' })
+      return res.status(400).json({ error: 'No empty location in this warehouse' })
     }
     db.run('UPDATE inventory SET location_id = ? WHERE car_id = ?', [location.id, car_id], function (err) {
       if (err) {
@@ -77,7 +77,7 @@ router.get('/warehouse/inventory', (req, res) => {
 
 router.post('/warehouse/outbound', (req, res) => {
   const { car_id } = req.body
-  db.get<any>('SELECT location_id FROM inventory WHERE car_id = ?', [car_id], (err, record) => {
+  db.get('SELECT location_id FROM inventory WHERE car_id = ?', [car_id], (err, record: any) => {
     if (err) {
       return res.status(500).json({ error: err.message })
     }
@@ -99,7 +99,7 @@ router.get('/warehouse/tracking/:orderId', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     if (!order) {
-      return res.status(404).json({ error: '订单不存在' })
+      return res.status(404).json({ error: 'Order not found' })
     }
     res.json({
       status: 'ok',
@@ -107,10 +107,10 @@ router.get('/warehouse/tracking/:orderId', (req, res) => {
         order_id: order.id,
         order_no: order.order_no,
         tracking: [
-          { time: '2026-07-04 10:00:00', location: '北京仓库', status: '已发货' },
-          { time: '2026-07-04 14:00:00', location: '北京物流中心', status: '运输中' },
-          { time: '2026-07-04 18:00:00', location: '天津中转站', status: '中转中' },
-          { time: '2026-07-05 08:00:00', location: '上海物流中心', status: '即将到达' }
+          { time: '2026-07-04 10:00:00', location: 'Beijing Warehouse', status: 'shipped' },
+          { time: '2026-07-04 14:00:00', location: 'Beijing Logistics Center', status: 'in_transit' },
+          { time: '2026-07-04 18:00:00', location: 'Tianjin Transit Station', status: 'transiting' },
+          { time: '2026-07-05 08:00:00', location: 'Shanghai Logistics Center', status: 'arriving' }
         ],
         estimated_arrival: '2026-07-05 14:00:00'
       }

@@ -1,4 +1,4 @@
-import express from 'express'
+﻿import express from 'express'
 import bcrypt from 'bcryptjs'
 import { db } from '../database'
 
@@ -20,28 +20,16 @@ router.post('/master/car-brands', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     res.json({ status: 'ok', data: { id: this.lastID, name } })
+  })
 })
 
 router.get('/master/car-models', (req, res) => {
-  const { brand_id } = req.query as { brand_id?: string }
-  if (brand_id) {
-    db.all('SELECT * FROM car_models WHERE brand_id = ? ORDER BY name', [brand_id], (err, models) => {
-      if (err) {
-        return res.status(500).json({ error: err.message })
-      }
-      res.json({ status: 'ok', data: models })
-    })
-  } else {
-    db.all(`SELECT cm.*, cb.name as brand_name 
-            FROM car_models cm 
-            LEFT JOIN car_brands cb ON cm.brand_id = cb.id
-            ORDER BY cb.name, cm.name`, (err, models) => {
-      if (err) {
-        return res.status(500).json({ error: err.message })
-      }
-      res.json({ status: 'ok', data: models })
-    })
-  }
+  db.all('SELECT * FROM car_models ORDER BY name', (err, models) => {
+    if (err) {
+      return res.status(500).json({ error: err.message })
+    }
+    res.json({ status: 'ok', data: models })
+  })
 })
 
 router.post('/master/car-models', (req, res) => {
@@ -51,29 +39,16 @@ router.post('/master/car-models', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     res.json({ status: 'ok', data: { id: this.lastID, brand_id, name } })
+  })
 })
 
 router.get('/master/car-series', (req, res) => {
-  const { model_id } = req.query as { model_id?: string }
-  if (model_id) {
-    db.all('SELECT * FROM car_series WHERE model_id = ? ORDER BY name', [model_id], (err, series) => {
-      if (err) {
-        return res.status(500).json({ error: err.message })
-      }
-      res.json({ status: 'ok', data: series })
-    })
-  } else {
-    db.all(`SELECT cs.*, cm.name as model_name, cb.name as brand_name 
-            FROM car_series cs 
-            LEFT JOIN car_models cm ON cs.model_id = cm.id
-            LEFT JOIN car_brands cb ON cm.brand_id = cb.id
-            ORDER BY cb.name, cm.name, cs.name`, (err, series) => {
-      if (err) {
-        return res.status(500).json({ error: err.message })
-      }
-      res.json({ status: 'ok', data: series })
-    })
-  }
+  db.all('SELECT * FROM car_series ORDER BY name', (err, series) => {
+    if (err) {
+      return res.status(500).json({ error: err.message })
+    }
+    res.json({ status: 'ok', data: series })
+  })
 })
 
 router.post('/master/car-series', (req, res) => {
@@ -83,11 +58,12 @@ router.post('/master/car-series', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     res.json({ status: 'ok', data: { id: this.lastID, model_id, name } })
+  })
 })
 
 router.get('/master/cars', (req, res) => {
   db.all(`SELECT c.*, cb.name as brand_name, cm.name as model_name, cs.name as series_name
-          FROM cars c 
+          FROM cars c
           LEFT JOIN car_brands cb ON c.brand_id = cb.id
           LEFT JOIN car_models cm ON c.model_id = cm.id
           LEFT JOIN car_series cs ON c.series_id = cs.id
@@ -108,6 +84,7 @@ router.post('/master/cars', (req, res) => {
         return res.status(500).json({ error: err.message })
       }
       res.json({ status: 'ok', data: { id: this.lastID, vin } })
+    })
 })
 
 router.get('/master/customers', (req, res) => {
@@ -128,6 +105,7 @@ router.post('/master/customers', (req, res) => {
         return res.status(500).json({ error: err.message })
       }
       res.json({ status: 'ok', data: { id: this.lastID, name } })
+    })
 })
 
 router.get('/master/suppliers', (req, res) => {
@@ -148,6 +126,7 @@ router.post('/master/suppliers', (req, res) => {
         return res.status(500).json({ error: err.message })
       }
       res.json({ status: 'ok', data: { id: this.lastID, name } })
+    })
 })
 
 router.get('/master/warehouses', (req, res) => {
@@ -174,6 +153,7 @@ router.post('/master/warehouses', (req, res) => {
         return res.status(500).json({ error: err.message })
       }
       res.json({ status: 'ok', data: { id: this.lastID, name } })
+    })
 })
 
 router.get('/master/users', (req, res) => {
@@ -185,11 +165,19 @@ router.get('/master/users', (req, res) => {
   })
 })
 
-  const hash = bcrypt.hashSync(password, 10);
+router.post('/master/users', (req, res) => {
+  const { username, password, role, email, name = username, status = 'active' } = req.body
+  const hash = bcrypt.hashSync(password, 10)
   db.run('INSERT INTO users (username, password, role, email, name, status) VALUES (?, ?, ?, ?, ?, ?)',
     [username, hash, role, email, name, status],
     function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message })
+      }
+      res.json({ status: 'ok', data: { id: this.lastID, username } })
+    })
 })
+
 router.get('/master/roles', (req, res) => {
   db.all('SELECT * FROM roles ORDER BY name', (err, roles) => {
     if (err) {
@@ -206,6 +194,7 @@ router.post('/master/roles', (req, res) => {
       return res.status(500).json({ error: err.message })
     }
     res.json({ status: 'ok', data: { id: this.lastID, name } })
+  })
 })
 
 export default router

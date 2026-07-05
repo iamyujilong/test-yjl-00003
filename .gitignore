@@ -55,3 +55,7 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db
+
+# Application data
+data/
+*.db
